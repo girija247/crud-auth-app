@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/styles.css"> <!-- Optional -->
+</head>
+<body>
+  <h1>Welcome to Your Dashboard</h1>
+
+  <!-- 🔍 Search Form -->
+  <form method="GET" action="/dashboard">
+    <input type="text" name="search" value="<%= search %>" placeholder="Search items..." />
+    <button type="submit">Search</button>
+  </form>
+
+  <!-- 📦 Items List -->
+  <ul>
+    <% if (items.length === 0) { %>
+      <li>No items found.</li>
+    <% } else { %>
+      <% items.forEach(item => { %>
+        <li>
+          <strong><%= item.title %></strong> - <%= item.description %>
+          <a href="/items/<%= item._id %>/edit">✏️ Edit</a>
+          <form action="/items/<%= item._id %>/delete" method="POST" style="display:inline;">
+            <button type="submit">❌ Delete</button>
+          </form>
+        </li>
+      <% }); %>
+    <% } %>
+  </ul>
+
+  <!-- 📄 Pagination -->
+  <div>
+    <% for (let i = 1; i <= totalPages; i++) { %>
+      <% if (i === page) { %>
+        <strong><%= i %></strong>
+      <% } else { %>
+        <a href="/dashboard?page=<%= i %>&search=<%= search %>"><%= i %></a>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

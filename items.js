@@ -1,59 +1,60 @@
- const express = require('express');
+const express = require('express');
 const router = express.Router();
-const Item = require('../models/Item');
+const Item = require('../models/item'); // or 'Item' with capital I, match your file
+const authMiddleware = require('../middleware/auth');
 
-// Middleware to check if user is logged in
-function authMiddleware(req, res, next) {
-  if (!req.session.userId) {
-    return res.redirect('/login');
-  }
-  next();
-}
-
-// View Dashboard
+// Show dashboard with search + pagination
 router.get('/dashboard', authMiddleware, async (req, res) => {
-  const items = await Item.find({ user: req.session.userId });
-  res.render('dashboard', { items });
-});
+  const search = req.query.search || '';
+  const page = parseInt(req.query.page) || 1;
+  const limit = 5;
+  const skip = (page - 1) * limit;
 
-// Create Item
-router.post('/items', authMiddleware, async (req, res) => {
-  await Item.create({
-    title: req.body.title,
-    description: req.body.description,
-    user: req.session.userId
-  });
-  res.redirect('/dashboard');
-});
+  const query = {
+    user: req.session.userId,
+    title: { $regex: search, $options: 'i' }
+  };
 
-// Edit Item - Form
-router.get('/items/:id/edit', authMiddleware, async (req, res) => {
-  const item = await Item.findById(req.params.id);
-  if (item.user.toString() !== req.session.userId) {
-    return res.send('Not authorized');
+  try {
+    const items = await Item.find(query).skip(skip).limit(limit);
+    const totalItems = await Item.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limit);
+
+    res.render('dashboard', { items, search, page, totalPages });
+  } catch (err) {
+    res.status(500).send("Error loading dashboard");
   }
-  res.render('edit', { item });
+});
+
+// Edit Form
+router.get('/:id/edit', authMiddleware, async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    res.render('edit', { item });
+  } catch (err) {
+    res.status(500).send("Error loading item");
+  }
 });
 
 // Update Item
-router.post('/items/:id/update', authMiddleware, async (req, res) => {
-  const item = await Item.findById(req.params.id);
-  if (item.user.toString() !== req.session.userId) {
-    return res.send('Not authorized');
+router.post('/:id', authMiddleware, async (req, res) => {
+  const { title, description } = req.body;
+  try {
+    await Item.findByIdAndUpdate(req.params.id, { title, description });
+    res.redirect('/dashboard');
+  } catch (err) {
+    res.status(500).send("Error updating item");
   }
-  await Item.findByIdAndUpdate(req.params.id, req.body);
-  res.redirect('/dashboard');
 });
 
 // Delete Item
-router.post('/items/:id/delete', authMiddleware, async (req, res) => {
-  const item = await Item.findById(req.params.id);
-  if (item.user.toString() !== req.session.userId) {
-    return res.send('Not authorized');
+router.post('/:id/delete', authMiddleware, async (req, res) => {
+  try {
+    await Item.findByIdAndDelete(req.params.id);
+    res.redirect('/dashboard');
+  } catch (err) {
+    res.status(500).send("Error deleting item");
   }
-  await Item.findByIdAndDelete(req.params.id);
-  res.redirect('/dashboard');
 });
 
 module.exports = router;
-
